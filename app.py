@@ -3,9 +3,12 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 import os
 import asyncio
+from dotenv import load_dotenv
 
-# Fetch bot token from environment variable
-TOKEN = os.environ.get("TOKEN")  # Set this in Render's environment settings
+load_dotenv()  
+
+TOKEN = os.getenv("BOT_TOKEN") 
+
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://insstagram-frontend.onrender.com/webhook")  # Change this after deployment
 
 if not TOKEN:
