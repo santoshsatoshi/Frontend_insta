@@ -1,6 +1,9 @@
 import os
 import asyncio
 import threading
+import logging
+import requests
+import time
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
@@ -23,6 +26,10 @@ user_data = {}
 # Initialize Telegram bot
 telegram_app = Application.builder().token(TOKEN).build()
 
+# --- Logging Setup ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 # --- Define Bot Commands ---
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
@@ -43,7 +50,7 @@ async def getqr(update: Update, context: CallbackContext):
 
 async def upload_screenshot(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
-    user_data[user_id] = {"paid": True}  
+    user_data[user_id] = {"paid": True}
     keyboard = [["/getlink", "/clearchat", "/closebot"]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
     await update.message.reply_text("Payment verified! Choose an option:", reply_markup=reply_markup)
@@ -87,30 +94,50 @@ async def webhook():
     """Handle incoming Telegram updates asynchronously."""
     update = Update.de_json(request.get_json(), telegram_app.bot)
 
-    # Ensure the application is initialized before processing updates
     if not telegram_app._initialized:
         await telegram_app.initialize()
 
-    await telegram_app.process_update(update)  # Correct async handling
+    try:
+        await telegram_app.process_update(update)
+    except telegram.error.NetworkError as e:
+        logger.error(f"Network error processing update: {e}")
+        if update.effective_chat:
+            try:
+                await telegram_app.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred while processing your request. Please try again later.")
+            except Exception as inner_e:
+                logger.error(f"Failed to send error message: {inner_e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        if update.effective_chat:
+            try:
+                await telegram_app.bot.send_message(chat_id=update.effective_chat.id, text="An unexpected error occurred. Please try again later.")
+            except Exception as inner_e:
+                logger.error(f"Failed to send unexpected error message: {inner_e}")
+
     return "OK"
 
 async def set_webhook():
     """Set the webhook for Telegram bot."""
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
-# --- Fix: Ensure Event Loop is Created and Run Properly ---
 def run_flask():
     """Run Flask in a separate thread."""
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
+def keep_alive():
+    while True:
+        try:
+            requests.get(WEBHOOK_URL.replace("/webhook", ""))
+            logger.info("Keep-alive request sent.")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Keep-alive request failed: {e}")
+        time.sleep(60 * 5)  # Send request every 5 minutes
+
 if __name__ == "__main__":
-    # Ensure a fresh asyncio loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
-    # Run set_webhook asynchronously
     loop.run_until_complete(set_webhook())
-
-    # Start Flask in a separate thread
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
+    keep_alive_thread = threading.Thread(target=keep_alive)
+    keep_alive_thread.start()
