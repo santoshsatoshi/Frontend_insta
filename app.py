@@ -98,10 +98,19 @@ async def set_webhook():
     """Set the webhook for Telegram bot."""
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
-# --- Start the Flask Server & Telegram Bot ---
-if __name__ == "__main__":
-    # Run webhook setup in an async thread
-    threading.Thread(target=lambda: asyncio.run(set_webhook())).start()
-
-    # Start Flask server
+# --- Fix: Ensure Event Loop is Created and Run Properly ---
+def run_flask():
+    """Run Flask in a separate thread."""
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+if __name__ == "__main__":
+    # Ensure a fresh asyncio loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Run set_webhook asynchronously
+    loop.run_until_complete(set_webhook())
+
+    # Start Flask in a separate thread
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
