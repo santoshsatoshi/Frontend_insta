@@ -4,8 +4,12 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import os
 import asyncio
 
-TOKEN = os.environ.get("TOKEN")
-WEBHOOK_URL = "https://your-render-app.onrender.com/webhook"  # Change this after deployment
+# Fetch bot token from environment variable
+TOKEN = os.environ.get("TOKEN")  # Set this in Render's environment settings
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://insstagram-frontend.onrender.com/webhook")  # Change this after deployment
+
+if not TOKEN:
+    raise ValueError("Bot Token is missing! Set the TOKEN environment variable.")
 
 app = Flask(__name__)
 
@@ -92,5 +96,5 @@ async def set_webhook():
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
 if __name__ == "__main__":
-    asyncio.run(set_webhook())  # Set webhook before running the app
+    asyncio.run(set_webhook()) 
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
