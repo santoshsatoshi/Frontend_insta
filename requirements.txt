@@ -1,4 +1,5 @@
 flask[async]
-python-telegram-bot==20.0
-gunicorn
+python-telegram-bot
 python-dotenv
+requests
+asyncio
