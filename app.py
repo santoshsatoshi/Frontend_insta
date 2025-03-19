@@ -20,7 +20,7 @@ app = Flask(__name__)
 # Store user payment status
 user_data = {}
 
-# Initialize Telegram bot
+# Initialize Telegram bot with asyncio loop
 telegram_app = Application.builder().token(TOKEN).build()
 
 # --- Define Bot Commands ---
@@ -83,33 +83,31 @@ def home():
     return "Bot is running!"
 
 @app.route("/webhook", methods=["POST"])
-async def webhook():
-    """Handle incoming Telegram updates asynchronously."""
+def webhook():
+    """Handle incoming Telegram updates."""
     update = Update.de_json(request.get_json(), telegram_app.bot)
-
-    # Ensure the application is initialized before processing updates
-    if not telegram_app._initialized:
-        await telegram_app.initialize()
-
-    await telegram_app.process_update(update)  # Correct async handling
-    return "OK"
+    
+    # Run the async function in the background
+    asyncio.run_coroutine_threadsafe(telegram_app.process_update(update), bot_loop)
+    
+    return "OK", 200
 
 async def set_webhook():
     """Set the webhook for Telegram bot."""
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
-# --- Fix: Ensure Event Loop is Created and Run Properly ---
+# --- Fix: Ensure Event Loop is Managed Properly ---
 def run_flask():
     """Run Flask in a separate thread."""
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
-    # Ensure a fresh asyncio loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Create a new asyncio loop
+    bot_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(bot_loop)
 
-    # Run set_webhook asynchronously
-    loop.run_until_complete(set_webhook())
+    # Run set_webhook asynchronously in the new event loop
+    bot_loop.run_until_complete(set_webhook())
 
     # Start Flask in a separate thread
     flask_thread = threading.Thread(target=run_flask)
