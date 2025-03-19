@@ -83,19 +83,25 @@ def home():
     return "Bot is running!"
 
 @app.route("/webhook", methods=["POST"])
-def webhook():
-    """Handle incoming Telegram updates synchronously."""
+async def webhook():
+    """Handle incoming Telegram updates asynchronously."""
     update = Update.de_json(request.get_json(), telegram_app.bot)
-    asyncio.run(telegram_app.process_update(update))  # Run async function properly
+
+    # Ensure the application is initialized before processing updates
+    if not telegram_app._initialized:
+        await telegram_app.initialize()
+
+    await telegram_app.process_update(update)  # Correct async handling
     return "OK"
 
 async def set_webhook():
     """Set the webhook for Telegram bot."""
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
+# --- Start the Flask Server & Telegram Bot ---
 if __name__ == "__main__":
-    # Run set_webhook in a separate thread to avoid blocking Flask
+    # Run webhook setup in an async thread
     threading.Thread(target=lambda: asyncio.run(set_webhook())).start()
-    
-    # Start Flask app
+
+    # Start Flask server
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
