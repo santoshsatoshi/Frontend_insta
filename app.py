@@ -1,18 +1,20 @@
 import os
 import asyncio
+import threading
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
-
 TOKEN = os.getenv("BOT_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://insstagram-frontend.onrender.com/webhook")
 
 if not TOKEN:
     raise ValueError("Bot Token is missing! Set the BOT_TOKEN environment variable.")
 
+# Initialize Flask app
 app = Flask(__name__)
 
 # Store user payment status
@@ -81,10 +83,10 @@ def home():
     return "Bot is running!"
 
 @app.route("/webhook", methods=["POST"])
-async def webhook():
-    """Handle incoming Telegram updates asynchronously."""
+def webhook():
+    """Handle incoming Telegram updates synchronously."""
     update = Update.de_json(request.get_json(), telegram_app.bot)
-    asyncio.create_task(telegram_app.process_update(update))  # Use create_task instead of loop
+    asyncio.run(telegram_app.process_update(update))  # Run async function properly
     return "OK"
 
 async def set_webhook():
@@ -92,5 +94,8 @@ async def set_webhook():
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
 if __name__ == "__main__":
-    asyncio.run(set_webhook())  
+    # Run set_webhook in a separate thread to avoid blocking Flask
+    threading.Thread(target=lambda: asyncio.run(set_webhook())).start()
+    
+    # Start Flask app
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
