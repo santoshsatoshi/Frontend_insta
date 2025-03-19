@@ -4,7 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import os
 import asyncio
 
-TOKEN = "YOUR_BOT_TOKEN"
+TOKEN = os.environ.get("TOKEN")
 WEBHOOK_URL = "https://your-render-app.onrender.com/webhook"  # Change this after deployment
 
 app = Flask(__name__)
