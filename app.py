@@ -5,7 +5,7 @@ import logging
 import requests
 import time
 from flask import Flask, request
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from dotenv import load_dotenv
 
@@ -33,44 +33,53 @@ logger = logging.getLogger(__name__)
 # --- Define Bot Commands ---
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    keyboard = [["/startbot", "/paynow", "/buypremium"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-    await update.message.reply_text(f"Welcome! Your Chat ID is: {chat_id}\nChoose an option:", reply_markup=reply_markup)
+    await update.message.reply_text(
+        f"👋 Welcome! Your Chat ID is: {chat_id}\n\n"
+        "Choose an option:\n"
+        "➡️ /startbot - Start bot\n"
+        "➡️ /paynow - Pay now\n"
+        "➡️ /buypremium - Buy premium"
+    )
 
 async def startbot(update: Update, context: CallbackContext):
-    keyboard = [["/getqr", "/payusingupi"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-    await update.message.reply_text("Choose a payment method:", reply_markup=reply_markup)
+    await update.message.reply_text(
+        "💰 Choose a payment method:\n"
+        "📌 /getqr - Get QR Code\n"
+        "📌 /payusingupi - Pay using UPI"
+    )
 
 async def payusingupi(update: Update, context: CallbackContext):
-    await update.message.reply_text("Please pay using UPI and upload a screenshot.")
+    await update.message.reply_text("💳 Please pay using UPI and upload a screenshot.")
 
 async def getqr(update: Update, context: CallbackContext):
-    await update.message.reply_text("Scan this QR to pay and upload a screenshot.")
+    await update.message.reply_text("📸 Scan this QR to pay and upload a screenshot.")
 
 async def upload_screenshot(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
     user_data[user_id] = {"paid": True}
-    keyboard = [["/getlink", "/clearchat", "/closebot"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-    await update.message.reply_text("Payment verified! Choose an option:", reply_markup=reply_markup)
+    await update.message.reply_text(
+        "✅ Payment verified!\n\nChoose an option:\n"
+        "🔗 /getlink - Get your link\n"
+        "🗑️ /clearchat - Clear chat\n"
+        "❌ /closebot - Close bot"
+    )
 
 async def getlink(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
     if user_id in user_data and user_data[user_id].get("paid"):
         unique_link = f"https://insstagram-4pwg.onrender.com/{user_id}"
-        await update.message.reply_text(f"Here is your link: {unique_link}")
+        await update.message.reply_text(f"🔗 Here is your link: {unique_link}")
     else:
-        await update.message.reply_text("Please complete the payment first.")
+        await update.message.reply_text("⚠️ Please complete the payment first.")
 
 async def clearchat(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
     if user_id in user_data:
         del user_data[user_id]
-    await update.message.reply_text("Chat history cleared. You can restart by typing /start.")
+    await update.message.reply_text("🧹 Chat history cleared. You can restart by typing /start.")
 
 async def closebot(update: Update, context: CallbackContext):
-    await update.message.reply_text("Bot closed. Type /start to restart anytime.")
+    await update.message.reply_text("🚪 Bot closed. Type /start to restart anytime.")
 
 # --- Register Handlers ---
 telegram_app.add_handler(CommandHandler("start", start))
@@ -99,20 +108,13 @@ async def webhook():
 
     try:
         await telegram_app.process_update(update)
-    except telegram.error.NetworkError as e:
-        logger.error(f"Network error processing update: {e}")
+    except Exception as e:
+        logger.error(f"Error processing update: {e}")
         if update.effective_chat:
             try:
-                await telegram_app.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred while processing your request. Please try again later.")
+                await telegram_app.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ An error occurred. Please try again later.")
             except Exception as inner_e:
                 logger.error(f"Failed to send error message: {inner_e}")
-    except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        if update.effective_chat:
-            try:
-                await telegram_app.bot.send_message(chat_id=update.effective_chat.id, text="An unexpected error occurred. Please try again later.")
-            except Exception as inner_e:
-                logger.error(f"Failed to send unexpected error message: {inner_e}")
 
     return "OK"
 
@@ -128,9 +130,9 @@ def keep_alive():
     while True:
         try:
             requests.get(WEBHOOK_URL.replace("/webhook", ""))
-            logger.info("Keep-alive request sent.")
+            logger.info("✅ Keep-alive request sent.")
         except requests.exceptions.RequestException as e:
-            logger.error(f"Keep-alive request failed: {e}")
+            logger.error(f"⚠️ Keep-alive request failed: {e}")
         time.sleep(60 * 5)  # Send request every 5 minutes
 
 if __name__ == "__main__":
