@@ -34,10 +34,13 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     await update.message.reply_text(
-        f"\U0001F44B Welcome! Your Chat ID is: {chat_id}\n\n"
-        "Choose an option:\n"
-        "➡️ /startbot - Start bot\n"
-        "➡️ /buypremium - Buy premium"
+        f"\U0001F44B Welcome! to InstaMart\n\n"
+        "Follow these steps to use the bot:\n"
+        "1️⃣ Type /startbot to activate the bot.\n"
+        "2️⃣ Once activated, use /getlink to get your unique link.\n"
+        "3️⃣ You can use /clearchat to reset your session.\n"
+        "4️⃣ Use /closebot to exit the bot.\n\n"
+        "Enjoy! 🚀"
     )
 
 async def startbot(update: Update, context: CallbackContext):
