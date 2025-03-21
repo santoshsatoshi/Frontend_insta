@@ -98,21 +98,35 @@ telegram_app.add_handler(CommandHandler("closebot", closebot))
 def home():
     return "Bot is running!"
 
-# Synchronous webhook route
+# Synchronous webhook route with additional logging
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    logger.info("Webhook called.")
     # Retrieve the main event loop from Flask config
-    loop = app.config['MAIN_LOOP']
+    try:
+        loop = app.config['MAIN_LOOP']
+    except KeyError:
+        logger.error("MAIN_LOOP not found in Flask config.")
+        return "Error", 500
+
     update_json = request.get_json()
+    logger.info(f"Received update: {update_json}")
     update = Update.de_json(update_json, telegram_app.bot)
 
-    # Schedule async processing on the main event loop
-    asyncio.run_coroutine_threadsafe(process_update(update), loop)
+    # Schedule the async processing on the main event loop
+    future = asyncio.run_coroutine_threadsafe(process_update(update), loop)
+    try:
+        # Optionally wait for the coroutine to complete (with a timeout)
+        result = future.result(timeout=10)
+    except Exception as e:
+        logger.error(f"Error executing process_update: {e}")
     return "OK"
 
 async def process_update(update: Update):
+    logger.info("Processing update in async coroutine.")
     # Ensure the bot is initialized
     if not telegram_app._initialized:
+        logger.info("Initializing telegram_app.")
         await telegram_app.initialize()
     try:
         await telegram_app.process_update(update)
@@ -129,12 +143,12 @@ async def process_update(update: Update):
                 logger.error(f"Failed to send error message: {inner_e}")
 
 async def set_webhook():
-    """Set the webhook for Telegram bot."""
+    logger.info("Setting webhook...")
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
+    logger.info("Webhook set.")
 
 def run_flask():
     """Run Flask in a separate thread."""
-    # Flask will have access to the MAIN_LOOP from app.config already
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 def keep_alive():
