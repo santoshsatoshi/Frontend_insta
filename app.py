@@ -101,11 +101,12 @@ def home():
 # Synchronous webhook route
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    loop = app.config['MAIN_LOOP']  # Get the main event loop from Flask config
+    # Retrieve the main event loop from Flask config
+    loop = app.config['MAIN_LOOP']
     update_json = request.get_json()
     update = Update.de_json(update_json, telegram_app.bot)
 
-    # Schedule the async processing on the main event loop
+    # Schedule async processing on the main event loop
     asyncio.run_coroutine_threadsafe(process_update(update), loop)
     return "OK"
 
@@ -131,9 +132,9 @@ async def set_webhook():
     """Set the webhook for Telegram bot."""
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
-def run_flask(loop):
+def run_flask():
     """Run Flask in a separate thread."""
-    app.config['MAIN_LOOP'] = loop  # Store the main event loop in Flask's config
+    # Flask will have access to the MAIN_LOOP from app.config already
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 def keep_alive():
@@ -151,11 +152,14 @@ if __name__ == "__main__":
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
+    # Set the loop in Flask's config so it's available in routes
+    app.config['MAIN_LOOP'] = loop
+
     # Set the webhook (using the main event loop)
     loop.run_until_complete(set_webhook())
 
-    # Start Flask in a separate thread and pass the event loop to it
-    flask_thread = threading.Thread(target=run_flask, args=(loop,))
+    # Start Flask in a separate thread
+    flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
     # Start the keep-alive thread
