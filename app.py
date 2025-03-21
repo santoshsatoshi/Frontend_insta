@@ -75,9 +75,6 @@ async def clearchat(update: Update, context: CallbackContext):
     if user_id in user_data:
         del user_data[user_id]
 
-    # Notify the user
-    await update.message.reply_text("🧹 Chat history cleared. You can restart by typing /start.")
-
 async def closebot(update: Update, context: CallbackContext):
     await update.message.reply_text("🚪 Bot closed. Type /start to restart anytime.")
 
