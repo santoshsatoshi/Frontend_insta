@@ -74,8 +74,19 @@ async def getlink(update: Update, context: CallbackContext):
 
 async def clearchat(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
+
+    # Delete the last 10 messages (adjust as needed)
+    for i in range(10):  
+        try:
+            await context.bot.delete_message(chat_id=user_id, message_id=update.message.message_id - i)
+        except Exception as e:
+            logger.error(f"Failed to delete message {update.message.message_id - i}: {e}")
+
+    # Clear user payment data
     if user_id in user_data:
         del user_data[user_id]
+
+    # Notify the user
     await update.message.reply_text("🧹 Chat history cleared. You can restart by typing /start.")
 
 async def closebot(update: Update, context: CallbackContext):
