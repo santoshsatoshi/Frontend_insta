@@ -26,16 +26,17 @@ def start_event_loop(loop: asyncio.AbstractEventLoop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
 
+# Define a simple coroutine to test the event loop
+async def test_loop():
+    logging.getLogger(__name__).info("Event loop is running.")
+
 # Create and start the MAIN_LOOP if not already set.
 if not app.config.get("MAIN_LOOP"):
     loop = asyncio.new_event_loop()
     app.config["MAIN_LOOP"] = loop
     threading.Thread(target=start_event_loop, args=(loop,), daemon=True).start()
-    # Test the event loop by scheduling a simple log
-    asyncio.run_coroutine_threadsafe(
-        (lambda: logging.getLogger(__name__).info("Event loop is running."))(),
-        loop,
-    )
+    # Schedule our test coroutine
+    asyncio.run_coroutine_threadsafe(test_loop(), loop)
 
 # Store user payment status
 user_data = {}
