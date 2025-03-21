@@ -98,56 +98,69 @@ telegram_app.add_handler(CommandHandler("closebot", closebot))
 def home():
     return "Bot is running!"
 
+# Synchronous webhook route
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    """Handle incoming Telegram updates in a synchronous manner."""
+    loop = app.config['MAIN_LOOP']  # Get the main event loop from Flask config
     update_json = request.get_json()
     update = Update.de_json(update_json, telegram_app.bot)
 
+    # Schedule the async processing on the main event loop
+    asyncio.run_coroutine_threadsafe(process_update(update), loop)
+    return "OK"
+
+async def process_update(update: Update):
     # Ensure the bot is initialized
     if not telegram_app._initialized:
-        asyncio.run(telegram_app.initialize())
-
+        await telegram_app.initialize()
     try:
-        # Process the update using a new event loop each time
-        asyncio.run(telegram_app.process_update(update))
+        await telegram_app.process_update(update)
     except Exception as e:
         logger.error(f"Error processing update: {e}")
+        # Optionally, send an error message back to the user
         if update.effective_chat:
             try:
-                asyncio.run(
-                    telegram_app.bot.send_message(
-                        chat_id=update.effective_chat.id,
-                        text="⚠️ An error occurred. Please try again later."
-                    )
+                await telegram_app.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="⚠️ An error occurred. Please try again later."
                 )
             except Exception as inner_e:
                 logger.error(f"Failed to send error message: {inner_e}")
-
-    return "OK"
 
 async def set_webhook():
     """Set the webhook for Telegram bot."""
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
 
-def run_flask():
+def run_flask(loop):
     """Run Flask in a separate thread."""
+    app.config['MAIN_LOOP'] = loop  # Store the main event loop in Flask's config
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 def keep_alive():
     while True:
         try:
-            # The keep-alive pings your app to prevent sleeping
+            # Ping the root URL to prevent the service from sleeping
             requests.get(WEBHOOK_URL.replace("/webhook", ""))
             logger.info("✅ Keep-alive request sent.")
         except requests.exceptions.RequestException as e:
             logger.error(f"⚠️ Keep-alive request failed: {e}")
-        time.sleep(60 * 5)  # Send request every 5 minutes
+        time.sleep(60 * 5)  # every 5 minutes
 
 if __name__ == "__main__":
-    # Set the webhook using a fresh event loop and then start the Flask server and keep-alive thread.
-    asyncio.run(set_webhook())
-    flask_thread = threading.Thread(target=run_flask)
+    # Create and set the main event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Set the webhook (using the main event loop)
+    loop.run_until_complete(set_webhook())
+
+    # Start Flask in a separate thread and pass the event loop to it
+    flask_thread = threading.Thread(target=run_flask, args=(loop,))
     flask_thread.start()
+
+    # Start the keep-alive thread
     keep_alive_thread = threading.Thread(target=keep_alive)
     keep_alive_thread.start()
+
+    # Keep the main event loop running indefinitely
+    loop.run_forever()
