@@ -20,6 +20,16 @@ if not TOKEN:
 # Initialize Flask app
 app = Flask(__name__)
 
+# Create and start the MAIN_LOOP if not already set.
+def start_event_loop(loop: asyncio.AbstractEventLoop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+if not app.config.get("MAIN_LOOP"):
+    loop = asyncio.new_event_loop()
+    app.config["MAIN_LOOP"] = loop
+    threading.Thread(target=start_event_loop, args=(loop,), daemon=True).start()
+
 # Store user payment status
 user_data = {}
 
@@ -102,7 +112,6 @@ def home():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     logger.info("Webhook called.")
-    # Retrieve the main event loop from Flask config
     try:
         loop = app.config['MAIN_LOOP']
     except KeyError:
@@ -113,10 +122,8 @@ def webhook():
     logger.info(f"Received update: {update_json}")
     update = Update.de_json(update_json, telegram_app.bot)
 
-    # Schedule async processing on the main event loop
     future = asyncio.run_coroutine_threadsafe(process_update(update), loop)
     try:
-        # Optionally wait for the coroutine to complete (with a timeout)
         future.result(timeout=10)
     except Exception as e:
         logger.error(f"Error executing process_update: {e}")
@@ -124,7 +131,6 @@ def webhook():
 
 async def process_update(update: Update):
     logger.info("Processing update in async coroutine.")
-    # Ensure the bot is initialized
     if not telegram_app._initialized:
         logger.info("Initializing telegram_app.")
         await telegram_app.initialize()
@@ -132,7 +138,6 @@ async def process_update(update: Update):
         await telegram_app.process_update(update)
     except Exception as e:
         logger.error(f"Error processing update: {e}")
-        # Optionally, send an error message back to the user
         if update.effective_chat:
             try:
                 await telegram_app.bot.send_message(
@@ -147,39 +152,19 @@ async def set_webhook():
     await telegram_app.bot.set_webhook(WEBHOOK_URL)
     logger.info("Webhook set.")
 
-def run_flask():
-    """Run Flask in a separate thread."""
-    # Disable the reloader to ensure the config remains intact.
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), use_reloader=False)
-
 def keep_alive():
     while True:
         try:
-            # Ping the root URL to prevent the service from sleeping
             requests.get(WEBHOOK_URL.replace("/webhook", ""))
             logger.info("✅ Keep-alive request sent.")
         except requests.exceptions.RequestException as e:
             logger.error(f"⚠️ Keep-alive request failed: {e}")
         time.sleep(60 * 5)  # every 5 minutes
 
+# __main__ block for local development (Gunicorn ignores this)
 if __name__ == "__main__":
-    # Create and set the main event loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    # Set the loop in Flask's config so it's available in routes
-    app.config['MAIN_LOOP'] = loop
-
-    # Set the webhook (using the main event loop)
+    loop = app.config["MAIN_LOOP"]
     loop.run_until_complete(set_webhook())
-
-    # Start Flask in a separate thread (with reloader disabled)
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
-
-    # Start the keep-alive thread
-    keep_alive_thread = threading.Thread(target=keep_alive)
-    keep_alive_thread.start()
-
-    # Keep the main event loop running indefinitely
-    loop.run_forever()
+    from waitress import serve
+    # For local testing, you could use waitress or similar instead of gunicorn
+    serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
