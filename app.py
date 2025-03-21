@@ -34,16 +34,15 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     await update.message.reply_text(
-        f"👋 Welcome! Your Chat ID is: {chat_id}\n\n"
+        f"\U0001F44B Welcome! Your Chat ID is: {chat_id}\n\n"
         "Choose an option:\n"
         "➡️ /startbot - Start bot\n"
-        "➡️ /paynow - Pay now\n"
         "➡️ /buypremium - Buy premium"
     )
 
 async def startbot(update: Update, context: CallbackContext):
     await update.message.reply_text(
-        "💰 Choose a payment method:\n"
+        "\U0001F4B0 Choose a payment method:\n"
         "📌 /getqr - Get QR Code\n"
         "📌 /payusingupi - Pay using UPI"
     )
@@ -74,7 +73,7 @@ async def getlink(update: Update, context: CallbackContext):
 
 async def clearchat(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
-
+    
     # Delete the last 10 messages (adjust as needed)
     for i in range(10):  
         try:
@@ -95,7 +94,6 @@ async def closebot(update: Update, context: CallbackContext):
 # --- Register Handlers ---
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CommandHandler("startbot", startbot))
-telegram_app.add_handler(CommandHandler("paynow", startbot))
 telegram_app.add_handler(CommandHandler("buypremium", startbot))
 telegram_app.add_handler(CommandHandler("payusingupi", payusingupi))
 telegram_app.add_handler(CommandHandler("getqr", getqr))
