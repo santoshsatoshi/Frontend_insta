@@ -123,13 +123,8 @@ def webhook():
     logger.info(f"Received update: {update_json}")
     update = Update.de_json(update_json, telegram_app.bot)
 
-    future = asyncio.run_coroutine_threadsafe(process_update(update), loop)
-    try:
-        # Optionally wait for the coroutine to complete (with a timeout)
-        future.result(timeout=10)
-    except Exception as e:
-        logger.error("Error executing process_update:")
-        logger.error(traceback.format_exc())
+    # Schedule async processing on the main event loop without waiting for it to complete.
+    asyncio.run_coroutine_threadsafe(process_update(update), loop)
     return "OK"
 
 async def process_update(update: Update):
