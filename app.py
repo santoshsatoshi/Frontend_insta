@@ -99,20 +99,28 @@ def home():
     return "Bot is running!"
 
 @app.route("/webhook", methods=["POST"])
-async def webhook():
-    """Handle incoming Telegram updates asynchronously."""
-    update = Update.de_json(request.get_json(), telegram_app.bot)
+def webhook():
+    """Handle incoming Telegram updates in a synchronous manner."""
+    update_json = request.get_json()
+    update = Update.de_json(update_json, telegram_app.bot)
 
+    # Ensure the bot is initialized
     if not telegram_app._initialized:
-        await telegram_app.initialize()
+        asyncio.run(telegram_app.initialize())
 
     try:
-        await telegram_app.process_update(update)
+        # Process the update using a new event loop each time
+        asyncio.run(telegram_app.process_update(update))
     except Exception as e:
         logger.error(f"Error processing update: {e}")
         if update.effective_chat:
             try:
-                await telegram_app.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ An error occurred. Please try again later.")
+                asyncio.run(
+                    telegram_app.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text="⚠️ An error occurred. Please try again later."
+                    )
+                )
             except Exception as inner_e:
                 logger.error(f"Failed to send error message: {inner_e}")
 
@@ -129,6 +137,7 @@ def run_flask():
 def keep_alive():
     while True:
         try:
+            # The keep-alive pings your app to prevent sleeping
             requests.get(WEBHOOK_URL.replace("/webhook", ""))
             logger.info("✅ Keep-alive request sent.")
         except requests.exceptions.RequestException as e:
@@ -136,9 +145,8 @@ def keep_alive():
         time.sleep(60 * 5)  # Send request every 5 minutes
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(set_webhook())
+    # Set the webhook using a fresh event loop and then start the Flask server and keep-alive thread.
+    asyncio.run(set_webhook())
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
     keep_alive_thread = threading.Thread(target=keep_alive)
