@@ -4,6 +4,7 @@ import threading
 import logging
 import requests
 import time
+import traceback
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
@@ -108,7 +109,7 @@ telegram_app.add_handler(CommandHandler("closebot", closebot))
 def home():
     return "Bot is running!"
 
-# Synchronous webhook route with logging
+# Synchronous webhook route with enhanced logging
 @app.route("/webhook", methods=["POST"])
 def webhook():
     logger.info("Webhook called.")
@@ -124,20 +125,23 @@ def webhook():
 
     future = asyncio.run_coroutine_threadsafe(process_update(update), loop)
     try:
+        # Optionally wait for the coroutine to complete (with a timeout)
         future.result(timeout=10)
     except Exception as e:
-        logger.error(f"Error executing process_update: {e}")
+        logger.error("Error executing process_update:")
+        logger.error(traceback.format_exc())
     return "OK"
 
 async def process_update(update: Update):
     logger.info("Processing update in async coroutine.")
-    if not telegram_app._initialized:
-        logger.info("Initializing telegram_app.")
-        await telegram_app.initialize()
     try:
+        if not telegram_app._initialized:
+            logger.info("Initializing telegram_app.")
+            await telegram_app.initialize()
         await telegram_app.process_update(update)
     except Exception as e:
-        logger.error(f"Error processing update: {e}")
+        logger.error("Error processing update:")
+        logger.error(traceback.format_exc())
         if update.effective_chat:
             try:
                 await telegram_app.bot.send_message(
@@ -145,7 +149,8 @@ async def process_update(update: Update):
                     text="⚠️ An error occurred. Please try again later."
                 )
             except Exception as inner_e:
-                logger.error(f"Failed to send error message: {inner_e}")
+                logger.error("Failed to send error message:")
+                logger.error(traceback.format_exc())
 
 async def set_webhook():
     logger.info("Setting webhook...")
@@ -161,10 +166,10 @@ def keep_alive():
             logger.error(f"⚠️ Keep-alive request failed: {e}")
         time.sleep(60 * 5)  # every 5 minutes
 
-# __main__ block for local development (Gunicorn ignores this)
+# For local development, the __main__ block will be used.
 if __name__ == "__main__":
     loop = app.config["MAIN_LOOP"]
     loop.run_until_complete(set_webhook())
     from waitress import serve
-    # For local testing, you could use waitress or similar instead of gunicorn
+    # For local testing, you can use waitress or similar instead of gunicorn.
     serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
