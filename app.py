@@ -98,7 +98,7 @@ telegram_app.add_handler(CommandHandler("closebot", closebot))
 def home():
     return "Bot is running!"
 
-# Synchronous webhook route with additional logging
+# Synchronous webhook route with logging
 @app.route("/webhook", methods=["POST"])
 def webhook():
     logger.info("Webhook called.")
@@ -113,11 +113,11 @@ def webhook():
     logger.info(f"Received update: {update_json}")
     update = Update.de_json(update_json, telegram_app.bot)
 
-    # Schedule the async processing on the main event loop
+    # Schedule async processing on the main event loop
     future = asyncio.run_coroutine_threadsafe(process_update(update), loop)
     try:
         # Optionally wait for the coroutine to complete (with a timeout)
-        result = future.result(timeout=10)
+        future.result(timeout=10)
     except Exception as e:
         logger.error(f"Error executing process_update: {e}")
     return "OK"
@@ -149,7 +149,8 @@ async def set_webhook():
 
 def run_flask():
     """Run Flask in a separate thread."""
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    # Disable the reloader to ensure the config remains intact.
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), use_reloader=False)
 
 def keep_alive():
     while True:
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     # Set the webhook (using the main event loop)
     loop.run_until_complete(set_webhook())
 
-    # Start Flask in a separate thread
+    # Start Flask in a separate thread (with reloader disabled)
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
